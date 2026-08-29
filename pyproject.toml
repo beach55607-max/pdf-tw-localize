@@ -1,0 +1,19 @@
+[project]
+name = "pdf-tw-localize"
+version = "0.1.0"
+description = "Source-bound Taiwan Traditional Chinese PDF localization and QA Codex Skill"
+readme = "README.md"
+requires-python = ">=3.11,<3.15"
+license = "AGPL-3.0-only"
+dependencies = [
+  "PyMuPDF==1.27.2.2",
+  "pypdf==6.10.0",
+  "Pillow==12.1.1",
+]
+
+[project.optional-dependencies]
+yaml = ["PyYAML==6.0.3"]
+dev = ["PyYAML==6.0.3"]
+
+[tool.uv]
+package = false

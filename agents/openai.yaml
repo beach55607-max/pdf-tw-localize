@@ -1,0 +1,4 @@
+interface:
+  display_name: "PDF 台灣繁中化"
+  short_description: "保留來源圖像與版面契約的繁中 PDF 重建與驗證"
+  default_prompt: "Use $pdf-tw-localize to rebuild this PDF as monolingual Taiwan Traditional Chinese, preserve undeclared images and UI pixels, route any redraw explicitly, and keep machine, semantic, visual, and user-acceptance states separate."

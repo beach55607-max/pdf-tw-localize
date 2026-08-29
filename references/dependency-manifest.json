@@ -1,0 +1,114 @@
+{
+  "schema": "pdf-tw-localize/dependency-manifest/v1",
+  "status": "RELEASE_READY",
+  "evidence_checked_at": "2026-08-30",
+  "project_license": {
+    "status": "SELECTED",
+    "spdx": "AGPL-3.0-only",
+    "license_file_present": true,
+    "release_allowed": true,
+    "decision_basis": "User approved the public-core release plan on 2026-08-30; repository distribution remains subject to the included AGPL and third-party notices."
+  },
+  "dependencies": [
+    {
+      "name": "PyMuPDF",
+      "role": "runtime",
+      "bundled": false,
+      "version_strategy": "Reference release lock: 1.27.2.2; supported policy range >=1.26.7,<1.28.0",
+      "source": "https://github.com/pymupdf/PyMuPDF",
+      "license_evidence": "https://pymupdf.readthedocs.io/en/latest/about.html#license-and-copyright",
+      "declared_license": "GNU AGPL v3 or commercial license",
+      "boundary": "Required for the current implementation. This public-core release selects the AGPL path and is distributed under AGPL-3.0-only; anyone relying on a separate commercial PyMuPDF license must assess and follow those commercial terms independently."
+    },
+    {
+      "name": "pypdf",
+      "role": "runtime",
+      "bundled": false,
+      "version_strategy": "Reference release lock: 6.10.0; supported policy range >=6.10.0,<7.0.0",
+      "source": "https://github.com/py-pdf/pypdf",
+      "license_evidence": "https://github.com/py-pdf/pypdf/blob/main/LICENSE",
+      "declared_license": "BSD-3-Clause",
+      "boundary": "Required for exact content-stream parsing and Catalog or ICC preservation."
+    },
+    {
+      "name": "Pillow",
+      "role": "runtime",
+      "bundled": false,
+      "version_strategy": "Reference release lock: 12.1.1; supported policy range >=12.0.0,<13.0.0",
+      "source": "https://github.com/python-pillow/Pillow",
+      "license_evidence": "https://github.com/python-pillow/Pillow/blob/main/LICENSE",
+      "declared_license": "MIT-CMU",
+      "boundary": "Required for image and comparison composition; wheel-level third-party notices must also be retained by a distributor."
+    },
+    {
+      "name": "OpenCC",
+      "role": "optional",
+      "bundled": false,
+      "version_strategy": ">=1.1.9; lock the exact package when enabled",
+      "source": "https://github.com/BYVoid/OpenCC",
+      "license_evidence": "https://github.com/BYVoid/OpenCC/blob/master/LICENSE",
+      "declared_license": "Apache-2.0",
+      "boundary": "Optional protected-span-aware normalization only; never a translator."
+    },
+    {
+      "name": "PyYAML",
+      "role": "optional",
+      "bundled": false,
+      "version_strategy": "Reference dev/YAML lock: 6.0.3; supported policy range >=6.0.3,<7.0.0",
+      "source": "https://github.com/yaml/pyyaml",
+      "license_evidence": "https://github.com/yaml/pyyaml/blob/main/LICENSE",
+      "declared_license": "MIT",
+      "boundary": "Lazy optional safe loader; JSON and CSV packs do not require it."
+    },
+    {
+      "name": "PDFMathTranslate",
+      "role": "optional_candidate_backend",
+      "bundled": false,
+      "version_strategy": "No public-core approval pin; select an exact reviewed revision and lock per task",
+      "source": "https://github.com/PDFMathTranslate/PDFMathTranslate",
+      "license_evidence": "https://github.com/PDFMathTranslate/PDFMathTranslate/blob/main/LICENSE",
+      "declared_license": "AGPL-3.0",
+      "boundary": "External candidate tool only; not a document-wide default or final authority. No source or Skill content is copied."
+    },
+    {
+      "name": "BabelDOC",
+      "role": "optional_candidate_backend",
+      "bundled": false,
+      "version_strategy": "No public-core approval pin; select an exact reviewed revision and lock per task",
+      "source": "https://github.com/funstory-ai/BabelDOC",
+      "license_evidence": "https://github.com/funstory-ai/BabelDOC/blob/main/LICENSE",
+      "declared_license": "AGPL-3.0",
+      "boundary": "External candidate tool only; network-service and distribution obligations require separate review. No source or Skill content is copied."
+    },
+    {
+      "name": "Hy-MT2",
+      "role": "optional_model",
+      "bundled": false,
+      "version_strategy": "Pin an exact official checkpoint revision and file SHA-256 per task",
+      "source": "https://huggingface.co/collections/tencent/hy-mt2",
+      "license_evidence": "https://huggingface.co/tencent/Hy-MT2-30B-A3B/blob/main/README.md",
+      "declared_license": "Apache-2.0 on the cited official model card; verify the exact selected checkpoint",
+      "boundary": "Optional draft or second opinion only; model identity, weights, and runtime are not bundled."
+    },
+    {
+      "name": "FontTools",
+      "role": "tooling",
+      "bundled": false,
+      "version_strategy": "4.63.0 for the recorded font-fixture build; not required at runtime",
+      "source": "https://github.com/fonttools/fonttools",
+      "license_evidence": "https://github.com/fonttools/fonttools/blob/main/LICENSE",
+      "declared_license": "MIT",
+      "boundary": "Used only to instantiate locked OFL test fonts; no FontTools code is copied."
+    },
+    {
+      "name": "Noto Sans TC",
+      "role": "test_asset",
+      "bundled": true,
+      "version_strategy": "Pinned source revision and output SHA-256 values in font-fixture-provenance.md",
+      "source": "https://github.com/google/fonts/tree/main/ofl/notosanstc",
+      "license_evidence": "assets/fonts/OFL.txt",
+      "declared_license": "OFL-1.1",
+      "boundary": "Regular and bold static test instances are bundled with the complete font license."
+    }
+  ]
+}

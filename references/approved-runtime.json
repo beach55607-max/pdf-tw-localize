@@ -1,0 +1,62 @@
+{
+  "policy_version": "1.0.0",
+  "packages": {
+    "pymupdf": {
+      "minimum": "1.26.7",
+      "maximum_exclusive": "1.28.0",
+      "reference_release_version": "1.27.2.2",
+      "required_when_present": true,
+      "purpose": "PDF inspection, source-coordinate rebuild, rendering, and geometry evidence"
+    },
+    "pypdf": {
+      "minimum": "6.10.0",
+      "maximum_exclusive": "7.0.0",
+      "reference_release_version": "6.10.0",
+      "required_for_segment_rebuild": true,
+      "purpose": "Content-stream parsing and Catalog OutputIntent or decoded ICC preservation"
+    },
+    "pillow": {
+      "minimum": "12.0.0",
+      "maximum_exclusive": "13.0.0",
+      "reference_release_version": "12.1.1",
+      "required_for_render_review": true,
+      "purpose": "Raster comparison composition and image checks"
+    },
+    "opencc": {
+      "minimum": "1.1.9",
+      "maximum_exclusive": null,
+      "required_when_present": false,
+      "purpose": "Optional protected-span-aware script normalization, never translation"
+    },
+    "babeldoc": {
+      "minimum": null,
+      "maximum_exclusive": null,
+      "required_when_present": false,
+      "candidate_only": true,
+      "requires_fresh_lock_and_license_review": true
+    },
+    "pdf2zh-next": {
+      "minimum": null,
+      "maximum_exclusive": null,
+      "required_when_present": false,
+      "candidate_only": true,
+      "requires_patch_manifest": true,
+      "requires_runtime_lock_manifest": true,
+      "allowed_upstream_version": null,
+      "allowed_upstream_commit": null,
+      "allowed_pre_patch_tree_sha256": null
+    }
+  },
+  "forbidden_runtime": {
+    "network_bindings": [
+      "0.0.0.0",
+      "::"
+    ],
+    "gradio_share": true,
+    "debug": true,
+    "trust_remote_code": true,
+    "untrusted_pickle": true,
+    "document_controlled_cmap_path": true
+  },
+  "approved_models": {}
+}

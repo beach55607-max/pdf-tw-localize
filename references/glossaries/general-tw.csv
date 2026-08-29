@@ -1,0 +1,38 @@
+id,source,target,notes
+general-001,WARNING,警告,safety heading
+general-002,NOTE,備註,information heading
+general-003,Important,重要事項,heading
+general-004,Maintenance,維護,technical
+general-005,Service,維修服務,technical
+general-006,Installation,安裝,technical
+general-007,Operation,操作,technical
+general-008,Operating Instructions,操作說明,manual heading
+general-009,Owner's Manual,使用手冊,document title
+general-010,User Manual,使用手冊,document title
+general-011,Troubleshooting,故障排除,manual heading
+general-012,Specifications,規格,manual heading
+general-013,Safety Instructions,安全須知,manual heading
+general-014,Power supply,電源,technical
+general-015,Power cord,電源線,technical
+general-016,Circuit breaker,斷路器,technical
+general-017,Remote controller,遙控器,technical
+general-018,Control panel,控制面板,technical
+general-019,Temperature,溫度,technical
+general-020,Humidity,濕度,technical
+general-021,Cooling,冷房,Taiwan technical usage
+general-022,Heating,暖房,Taiwan technical usage
+general-023,Fan,送風,mode
+general-024,Dry,除濕,mode
+general-025,Auto,自動,mode
+general-026,On,開啟,UI state
+general-027,Off,關閉,UI state
+general-028,Reset,重設,UI action
+general-029,Cancel,取消,UI action
+general-030,Confirm,確認,UI action
+general-031,Settings,設定,UI
+general-032,Menu,選單,UI action
+general-033,Back,返回,UI action
+general-034,OK,確認,UI action
+general-035,ENGLISH,繁體中文,localized edition label
+general-036,Do not,請勿,safety instruction
+general-037,Keep away from,請遠離,safety instruction
