@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented here.
 
+## Unreleased
+
+### Documentation
+
+- Reworked the Traditional Chinese README as a community entry point with clear fit boundaries, inspectable implementation links, a safe first run, and explicit QA-versus-acceptance semantics.
+- Added an English README for non-Chinese readers.
+- Added a fully synthetic, de-identified end-to-end quickstart covering preflight, extraction, exact-ID translation import, source-coordinate rebuild, machine QA, page-by-page visual review, and resumable full-document planning.
+
+### Safety and compatibility
+
+- Documentation examples use generic identifiers and placeholder filenames only. No customer document, private path, document hash, glossary entry, model identity, credential, or private regression evidence is included.
+- This is a documentation-only change. Translation, rebuild, runtime, QA behavior, dependency locks, licensing, and the public domain-pack contract are unchanged.
+
 ## 0.2.0 - 2026-09-01
 
 ### Added
