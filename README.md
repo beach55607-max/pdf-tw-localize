@@ -23,6 +23,8 @@ A source-bound Codex Skill and deterministic Python toolchain for rebuilding lay
 - 驗證頁面、字型、顏色、OutputIntent／ICC、英文殘留、幾何、圖片與向量簽章。
 - 將 `MACHINE_QA`、`SEMANTIC_QA`、`VISUAL_REVIEW` 與 `USER_ACCEPTANCE` 分開。
 - 以明確路徑、ID、版本及 SHA-256 載入可選的資料型 domain pack；不會自動搜尋私人詞彙包。
+- 完整文件先做全域術語與跨頁相依分析，再切成不拆語意的雜湊綁定批次；可續跑，也能在環境允許時安全平行處理。
+- 加速只作用於翻譯草稿階段；最後仍從英文來源重建一次，完整執行機器 QA、語意 QA、逐頁視覺複核與使用者驗收。
 
 ## 不包含的內容
 
@@ -77,6 +79,8 @@ uv run python -m unittest discover -s tests -p "test_*.py"
 ## 測試
 
 公開測試只使用合成文字、座標、圖片及路徑，不含私人文件身分。完整測試涵蓋穩定 ID、domain pack、字型、內容流、向量簽章、來源座標重建、圖片保存及 QA 狀態。
+
+完整文件的批次規則、續跑格式及耗時紀錄見 [`references/full-mode-acceleration.md`](references/full-mode-acceleration.md)。
 
 ## 授權
 

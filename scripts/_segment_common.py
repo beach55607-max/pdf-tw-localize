@@ -14,6 +14,11 @@ from _compound_components import (
     COMPOUND_COMPONENT_SCHEMA,
     validate_compound_component_contract,
 )
+from _inline_visual_sequences import (
+    validate_inline_superseded_segments,
+    validate_inline_visual_sequence,
+    validate_inline_visual_sweeps,
+)
 
 
 SCHEMA = "pdf-tw-localize/segment-manifest/v1"
@@ -1001,6 +1006,7 @@ def validate_manifest(
 
         issues.extend(validate_text_color_contract(segment))
         issues.extend(validate_text_alignment_contract(segment, page_rect))
+        issues.extend(validate_inline_visual_sequence(segment, page_rect))
 
         component_contract = segment.get("component_contract")
         if component_contract is not None:
@@ -1855,6 +1861,9 @@ def validate_manifest(
                 evidence={"duplicate_source": duplicate_source, "duplicate_target": duplicate_target},
             )
         )
+
+    issues.extend(validate_inline_visual_sweeps(manifest))
+    issues.extend(validate_inline_superseded_segments(manifest))
 
     coverage = manifest.get("coverage") or {}
     if coverage.get("unmapped_source_refs"):

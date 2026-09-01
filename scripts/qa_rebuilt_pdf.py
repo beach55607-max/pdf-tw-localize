@@ -871,8 +871,40 @@ def main() -> int:
     rendered_font_roles: list[dict[str, Any]] = []
     foreground_color_validation: list[dict[str, Any]] = []
     text_alignment_validation: list[dict[str, Any]] = []
+    superseded_inline_segments: list[dict[str, Any]] = []
+    declared_superseded = {
+        str(segment_id): str(owner_id)
+        for segment_id, owner_id in (
+            manifest.get("post_rebuild_superseded_segments") or {}
+        ).items()
+    }
     for segment_result in report_segments:
         if segment_result.get("action") in PRESERVE_ACTIONS:
+            continue
+        if segment_result.get("fit_status") == "SUPERSEDED_BY_FINAL_INLINE_VISUAL_SEQUENCE":
+            segment_id = str(segment_result.get("segment_id", ""))
+            owner_id = str(segment_result.get("superseded_by_segment_id", ""))
+            superseded_record = {
+                "segment_id": segment_id,
+                "superseded_by_segment_id": owner_id,
+                "rendered_line_count": len(segment_result.get("rendered_lines") or []),
+                "prior_live_text_removed_before_final_overlay": segment_result.get(
+                    "prior_live_text_removed_before_final_overlay"
+                ),
+            }
+            superseded_inline_segments.append(superseded_record)
+            if (
+                declared_superseded.get(segment_id) != owner_id
+                or superseded_record["rendered_line_count"] != 0
+                or superseded_record["prior_live_text_removed_before_final_overlay"]
+                is not True
+            ):
+                add_block(
+                    blocking,
+                    "INLINE_SUPERSEDED_RENDER_MISMATCH",
+                    "A superseded fragment is not bound to its declared complete inline sequence",
+                    superseded_record,
+                )
             continue
         used_size = float(segment_result["used_font_size_pt"])
         source_size = float(segment_result.get("source_font_size_pt") or 0)
@@ -1176,6 +1208,7 @@ def main() -> int:
         "rendered_font_roles": rendered_font_roles,
         "foreground_color_validation": foreground_color_validation,
         "text_alignment_validation": text_alignment_validation,
+        "superseded_inline_segments": superseded_inline_segments,
         "background_adjustments": background_adjustments,
         "vector_rule_adjustments": vector_rule_adjustments,
         "protected_token_evidence": protected_token_evidence,

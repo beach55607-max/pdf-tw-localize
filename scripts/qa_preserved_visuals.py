@@ -33,6 +33,10 @@ from _drawing_signature import (
     signature_contract,
 )
 from _pdf_catalog import catalog_color_evidence
+from _inline_visual_sequences import (
+    LEGACY_TWO_STAGE_MASK_MODE,
+    validate_legacy_two_stage_overlay_evidence,
+)
 from _segment_common import (
     PRESERVE_ACTIONS,
     bbox_intersection_area,
@@ -678,6 +682,7 @@ def main() -> int:
             blocking.append({"code": "REQUIRED_LIVE_TEXT_MISSING", "text": value})
 
     background_results: list[dict[str, Any]] = []
+    inline_overlay_mask_contracts: list[dict[str, Any]] = []
     for segment in manifest.get("segments") or []:
         render = segment.get("render") or {}
         if render.get("mask_mode") != "remove_text_only":
@@ -685,8 +690,52 @@ def main() -> int:
         segment_id = segment["segment_id"]
         background_bbox = render.get("preserve_background_bbox")
         report_item = report_by_id.get(segment_id) or {}
-        if report_item.get("mask_mode") != "remove_text_only" or report_item.get("mask_fill") is not None:
-            blocking.append({"code": "TEXT_ONLY_MASK_EVIDENCE_MISSING", "segment_id": segment_id})
+        direct_text_only = (
+            report_item.get("mask_mode") == "remove_text_only"
+            and report_item.get("mask_fill") is None
+        )
+        if direct_text_only:
+            inline_overlay_mask_contracts.append(
+                {
+                    "segment_id": segment_id,
+                    "stage1_mask_mode": "remove_text_only",
+                    "final_opaque_overlay": "NOT_DECLARED",
+                    "status": "PASS",
+                }
+            )
+        elif report_item.get("mask_mode") == LEGACY_TWO_STAGE_MASK_MODE:
+            valid_overlay, overlay_evidence, overlay_problems = (
+                validate_legacy_two_stage_overlay_evidence(
+                    rebuild=rebuild,
+                    rebuild_path=rebuild_path,
+                    report_item=report_item,
+                    segment_id=str(segment_id),
+                    source_path=source_path,
+                    candidate_path=candidate_path,
+                    manifest_path=manifest_path,
+                )
+            )
+            inline_overlay_mask_contracts.append(
+                {
+                    "segment_id": segment_id,
+                    "stage1_mask_mode": "remove_text_only",
+                    "final_opaque_overlay": "HASH_BOUND_TWO_STAGE_EVIDENCE",
+                    "evidence": overlay_evidence,
+                    "status": "PASS" if valid_overlay else "BLOCKED",
+                }
+            )
+            if not valid_overlay:
+                blocking.append(
+                    {
+                        "code": "TEXT_ONLY_MASK_EVIDENCE_MISSING",
+                        "segment_id": segment_id,
+                        "overlay_problems": overlay_problems,
+                    }
+                )
+        else:
+            blocking.append(
+                {"code": "TEXT_ONLY_MASK_EVIDENCE_MISSING", "segment_id": segment_id}
+            )
         if not background_bbox and declares_protected_background_member(segment):
             blocking.append({"code": "PRESERVED_BACKGROUND_BBOX_MISSING", "segment_id": segment_id})
         if not background_bbox:
@@ -1072,6 +1121,7 @@ def main() -> int:
         "visuals": visual_results,
         "live_text": live_text_results,
         "preserved_backgrounds": background_results,
+        "inline_overlay_mask_contracts": inline_overlay_mask_contracts,
         "component_preservation": component_results,
         "background_adjustments": background_adjustments,
         "blocking_issue_count": len(blocking),

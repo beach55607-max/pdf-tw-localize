@@ -23,6 +23,9 @@ REQUIRED = {
     "agents/openai.yaml",
     "references/dependency-manifest.json",
     "references/approved-runtime.json",
+    "references/full-mode-acceleration.md",
+    "scripts/full_run_pipeline.py",
+    "scripts/qa_inline_visual_sequences.py",
     "assets/fonts/OFL.txt",
 }
 IGNORED_DIRS = {".git", ".venv"}

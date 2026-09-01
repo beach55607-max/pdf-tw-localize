@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
 
@@ -95,6 +96,34 @@ class CleanPublicMirrorTest(unittest.TestCase):
                     "chore: publish pdf-tw-localize v0.1.0",
                 ],
             )
+
+    def test_clean_candidate_uses_git_blob_bytes_with_crlf_checkout(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            base = Path(raw)
+            origin = make_source(base / "origin")
+            source = base / "source"
+            git(
+                base,
+                "-c",
+                "core.autocrlf=true",
+                "clone",
+                "--quiet",
+                "--no-hardlinks",
+                str(origin),
+                str(source),
+            )
+            readme = source / "README.md"
+            self.assertEqual(readme.read_bytes(), b"# Fixture\r\n")
+
+            result = build_release(source, base / "mirror", base / "artifacts", "0.1.0")
+
+            self.assertEqual(result.source_git_tree, result.public_git_tree)
+            self.assertEqual((Path(result.mirror_path) / "README.md").read_bytes(), b"# Fixture\n")
+            with zipfile.ZipFile(result.zip_path) as archive:
+                self.assertEqual(
+                    archive.read("pdf-tw-localize-v0.1.0/README.md"),
+                    b"# Fixture\n",
+                )
 
     def test_existing_output_is_rejected_without_overwrite(self) -> None:
         with tempfile.TemporaryDirectory() as raw:

@@ -2,6 +2,8 @@
 
 The primary semantic translation is performed by a context-capable language model using the complete page and semantic-region context packet. No extraction, translation, OCR, conversion, or normalization tool owns the final PDF.
 
+For full-document work, perform one document-wide terminology and dependency prepass before translation. Then follow [full-mode-acceleration.md](full-mode-acceleration.md): each batch owns disjoint stable IDs, receives the same glossary and document contract, and includes read-only neighboring context. Exact completed request/result pairs may resume after hash validation; a stale or partial batch must be regenerated.
+
 ## Role hierarchy
 
 1. **Primary language model:** translate coherent semantic blocks with page purpose, hierarchy, neighbors, table relationships, UI state, protected tokens, and glossary choices.
@@ -43,3 +45,5 @@ Reject or reroute output that:
 - is empty or truncated.
 
 Retry once only when a narrower semantic block preserves enough context. Otherwise route to the primary language model or manual translation and keep the page unresolved.
+
+Parallel workers are optional execution capacity, not independent authorities. Dispatch only batches assigned to the same parallel wave, allow at most one high-context batch per wave, and merge only exact schema-bound results. A worker must not edit the source manifest, rebuild the PDF, or assert machine QA, visual review, or user acceptance.

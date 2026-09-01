@@ -37,7 +37,7 @@ Use when English is baked into screenshots, controllers, diagrams, labels, callo
 1. Open the full page and identify the image's purpose and UI state.
 2. Classify each image-text region as required, user-permitted English, or protected; protect symbols, values, model codes, and physical button shapes.
 3. Choose one route for each visual:
-   - `preserve_source_visual_with_textual_guidance` when the source visual is clear, the UI English is not safety-critical, and adjacent localized text can explain the needed operation. Preserve the original pixels and placement; put only exact `中文（Source UI）` navigation terms in nearby body text or a caption.
+   - `preserve_source_visual_with_textual_guidance` when the source visual is clear, the UI English is not safety-critical, and adjacent localized text can explain the needed operation. Preserve the original pixels and the registered placement of that complete screenshot, diagram, or controller visual; put only exact `中文（Source UI）` navigation terms in nearby body text or a caption.
    - `redraw_required_image_text` only when the user requests a redraw, or when safety or core operation cannot be explained adequately outside the visual.
 4. A user instruction to preserve the source visual overrides a default redraw preference. Never force a redraw merely to eliminate otherwise permitted UI English.
 5. For a preserved visual, declare its bbox, decoded image identity, pixel dimensions, visual ID, exact UI-English-to-zh-TW map, and guidance segment IDs. No mask, replacement text, or new drawing may intersect that visual bbox.
@@ -71,6 +71,19 @@ Do not judge the rule only by its hidden source path. If an opaque plate or othe
 If the visual defect comes from the source background member itself rather than the live-text removal bbox, do not enlarge or repaint the text mask. A simple, independently identified, untransformed rectangular background may use `adjust_background` to shrink within its own source bbox. Declare the target bbox, expected fill, and neighboring `avoid_regions`; the source background must intersect an avoid region and the target must clear it. Preserve rounded containers underneath so their original geometry is revealed instead of patched.
 
 OCR is evidence and transcription assistance; it is not a translation or layout decision.
+
+### Inline complete-object relocation
+
+A standalone button or status icon embedded in an instruction is not automatically a fixed-placement screenshot. Distinguish two independent properties:
+
+- internal visual content is immutable: retain the complete source clip at identical width and height, with no crop, redraw, substituted glyph, or internal pixel/vector edit;
+- object placement may change: move the whole visual horizontally or vertically when zh-TW grammar requires it, unless the user or another manifest contract explicitly fixes its registration.
+
+For a two-choice instruction, use `pdf-tw-localize/inline-visual-relocation/v1`. Declare `natural_inline_choice_sequence`, semantic labels for both visuals, `show_pdf_page_source_clip`, exact source and target clips, both translation deltas, an inspected cover color, and live-text fragments in the order prefix + visual A + `或` + visual B + suffix. The target clips must retain source dimensions. Declare a finite `maximum_gap_pt`; source-order whitespace is not a valid layout requirement.
+
+Before authoring the relocation, scan every page in the selected scope for the same source visual pattern and declare one `pdf-tw-localize/inline-visual-sweep/v1`. The expected ID list must exactly equal the matching segments. Full-document runs use `document_wide_source_visual_scan` and `DOCUMENT_WIDE_COMPLETE`; explicitly narrower proofs use the corresponding declared-scope values. A user report identifies a defect family, not permission to leave homologous instances unchecked.
+
+Stage 1 removes all prior live text in each declared cover with `remove_text_only`. Stage 2 applies the inspected opaque cover, copies the complete source clips, and inserts the zh-TW fragments. Report both stages truthfully. Do not change `mask_mode` after the fact to make a QA tool pass; legacy external overlays require exact hash-bound evidence, zero residual prior text, and source-drawing preservation.
 
 ## scanned-rebuild
 

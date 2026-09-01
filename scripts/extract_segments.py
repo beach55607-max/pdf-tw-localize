@@ -373,6 +373,12 @@ def main() -> int:
         "visual_review": "NOT_CHECKED",
         "user_acceptance": "NOT_CHECKED",
     }
+    if layout_spec and "inline_visual_sweeps" in layout_spec:
+        manifest["inline_visual_sweeps"] = layout_spec["inline_visual_sweeps"]
+    if layout_spec and "post_rebuild_superseded_segments" in layout_spec:
+        manifest["post_rebuild_superseded_segments"] = layout_spec[
+            "post_rebuild_superseded_segments"
+        ]
     write_json(args.output, manifest)
     emit_text(
         f"EXTRACTED segments={len(segments)} mapped_refs={len(mapped_set)} "

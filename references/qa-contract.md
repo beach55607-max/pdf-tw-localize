@@ -2,6 +2,8 @@
 
 A successful write or render is not acceptance. Keep automated evidence, real page viewing, and user acceptance as separate states.
 
+For a resumable full-mode run, translation checkpoints are valid only when their plan SHA-256, deterministic plan digest, extraction-validation digest, source-manifest SHA-256, batch digest, request SHA-256, owned stable IDs, protected tokens, semantic assertions, and source-segment digests all match. Checkpoint validation proves only that the translation result belongs to the current plan. It cannot inherit `MACHINE_QA_PASS`, `SEMANTIC_QA_PASS`, `VISUAL_REVIEWED`, or `USER_ACCEPTED` from any earlier candidate. After merge, rebuild from the bound English source and run every applicable final gate against the new candidate.
+
 ## MACHINE_QA
 
 Automated checks must report scope and evidence. They may flag visual suspicions but cannot decide that a page looks correct.
@@ -41,6 +43,8 @@ Automated checks must report scope and evidence. They may flag visual suspicions
 - Validate `english-allowlist/v3` structure and exact page/segment scope before residue scanning. A missing reason or basis, a tool-difficulty rationale, or an exception outside its declared scope is blocking.
 - For every vector drawing comparison, use the complete ordered operator stream. Preserve duplicates and all coordinates for `l`, `re`, `qu`, and cubic `c`; a cubic contains its start, both control points, and endpoint. Do not sort or deduplicate operators. Normalize only binary-float representation noise, compare coordinates with an absolute tolerance of `0.001 pt` (about `0.00035 mm`, roughly 240 times smaller than one 300 dpi pixel), and report that tolerance with the evidence. Bbox, fill, line endpoints, or item count alone cannot establish identity. An unknown, missing-field, non-finite, or malformed operator is blocking and must be reported as fail-closed evidence.
 - When live text is removed from a separate colored or rounded background, verify the background drawing remains and inspect the 300 dpi crop for a rectangular fill seam. `remove_text_only` evidence is not a visual PASS by itself.
+- For `inline-visual-relocation/v1`, run `qa_inline_visual_sequences.py`. Require exact selected-scope sweep coverage, two distinct semantic labels, equal source/target clip dimensions, `show_pdf_page_source_clip`, no internal edit, declared horizontal and vertical translations, prefix/visual/`或`/visual/suffix order, and every gap within `maximum_gap_pt`. Reopen and record the source/target clip renders at 300 dpi or higher; subpixel raster-phase differences remain a visual-review item only when the source-clip copy method and unscaled geometry are exact. A missing connector, scaled/redrawn visual, altered copy method, unlisted homologous instance, or wrong report/hash binding is blocking.
+- Keep the inline relocation stages separate. Stage 1 is `remove_text_only` with zero padding. Stage 2 is the inspected opaque cover, complete source-clip copies, and live zh-TW fragments. A legacy report using `stage1_remove_text_then_final_opaque_visual_occlusion` passes preserved-visual QA only when an external overlay report is hash-bound to the exact source, manifest, candidate, and segment; it must prove zero residual prior text, PASS for both drawing checks, and exactly one PASS operation for that segment. Never normalize or relabel the report after generation merely to satisfy the gate.
 - When `adjust_background` is declared, treat only its exact source-rectangle-to-target-rectangle change as intentional. Require one source operator, one verified target drawing, zero target intersection with every avoid region, preservation of the underlying neighboring container, and a 300 dpi seam/corner review. Do not waive unrelated missing line art.
 - When `adjust_vector_rule` is declared, treat only the exact signature-bound path translation as intentional. Require the declared non-zero delta and target bbox, one uniquely matched source path, zero source-signature residue, one exact translated drawing signature, one exact translated content-path signature, unchanged graphics state/operator order, and a 300 dpi optical review. Do not accept an overpainted duplicate line or waive unrelated line-art changes.
 
@@ -99,3 +103,5 @@ Never rename a candidate to bypass a gate.
 ## Required evidence
 
 Keep the secure-preflight report, page inspection and route map, region mapping, glossary and backend record, machine QA report, comparison images, review manifest, review-validation report, and all bound hashes.
+
+For accelerated full mode, also keep the dependency prepass, extraction validation, full-run plan, request digests, validated result digests, merge evidence, and plan-bound timing ledger.

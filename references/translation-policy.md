@@ -24,6 +24,7 @@
 - Functional UI labels and state changes require a contextual decision; decorative labels and nonessential packaging text may remain English when permitted.
 - If a redraw would reduce fidelity or legibility, preserve the original image text and record the exception in the page review.
 - If the user explicitly requests preservation, keep the original pixels and explain necessary operation in adjacent localized text unless safety or core understanding remains unresolved. Do not put a translation mask or overlay inside that visual.
+- Preserving pixels or vector content does not by itself freeze the visual object's page coordinates. When target-language grammar needs an inline icon to move, relocate the complete source-bound object without cropping, scaling, redrawing, or editing its interior. Keep placement fixed only when the user explicitly requires it or when the visual is registered to a protected frame, screenshot, diagram, table cell, or other positional contract.
 - Do not turn translation difficulty into an English exception. A retained English brand, model, standard identifier, source UI, or protected proper name requires an exact `english-allowlist/v3` type, substantive reason, page-and-segment scope, and user or policy basis. Ordinary headings, warnings, and safety labels remain required translation unless the user explicitly changes that requirement.
 - A permitted image-English exception does not waive full-page visual review.
 
@@ -93,6 +94,7 @@ Treat a phrase split by visual line breaks or extraction blocks as one term when
 - Prefer established Taiwan technical terms over literal calques.
 - Keep headings compact.
 - In numbered procedures, begin with the action and preserve the step boundary.
+- For two inline visual choices, write one Chinese sentence in semantic order—prefix + complete visual A + `或` + complete visual B + suffix. Do not imitate an English detached-icon row or create leading whitespace merely to retain source word order.
 - Do not invent product capabilities, safety claims, specifications, or operating conditions.
 - Keep a controller or diagram's related labels mutually consistent across all states on the page.
 

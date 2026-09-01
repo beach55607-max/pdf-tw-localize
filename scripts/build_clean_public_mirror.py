@@ -7,7 +7,6 @@ import argparse
 import hashlib
 import json
 import os
-import shutil
 import stat
 import subprocess
 import tempfile
@@ -37,6 +36,7 @@ class SourceEntry:
     mode: str
     size: int
     sha256: str
+    data: bytes
 
 
 @dataclass(frozen=True)
@@ -174,10 +174,55 @@ def projected_tracked_candidate_tree(source_root: Path) -> str:
         temporary_index.with_name(temporary_index.name + ".lock").unlink(missing_ok=True)
 
 
+def clean_candidate_tree(source_root: Path) -> str | None:
+    """Return HEAD's tree when tracked bytes differ only by checkout EOLs."""
+
+    head_tree = str(run_git(source_root, "rev-parse", "HEAD^{tree}"))
+    try:
+        index_tree = str(run_git(source_root, "write-tree"))
+    except ReleaseBuildError:
+        return None
+    if index_tree != head_tree:
+        return None
+    untracked = bytes(
+        run_git(
+            source_root,
+            "ls-files",
+            "-z",
+            "--others",
+            "--exclude-standard",
+            text=False,
+        )
+    )
+    if untracked:
+        return None
+    raw_paths = bytes(run_git(source_root, "ls-files", "-z", "--cached", text=False))
+    for encoded_path in (value for value in raw_paths.split(b"\0") if value):
+        relative = os.fsdecode(encoded_path).replace("\\", "/")
+        path = source_root / Path(*PurePosixPath(relative).parts)
+        try:
+            path.resolve(strict=True).relative_to(source_root)
+        except (FileNotFoundError, ValueError):
+            return None
+        if not path.is_file() or path.is_symlink() or os.path.islink(path):
+            return None
+        worktree_data = path.read_bytes()
+        blob_data = bytes(run_git(source_root, "cat-file", "blob", f"HEAD:{relative}", text=False))
+        if worktree_data == blob_data:
+            continue
+        if (
+            PurePosixPath(relative).suffix.lower() in TEXT_SUFFIXES
+            and worktree_data.replace(b"\r\n", b"\n") == blob_data.replace(b"\r\n", b"\n")
+        ):
+            continue
+        return None
+    return head_tree
+
+
 def candidate_tree_identity(source_root: Path, *, allow_draft_snapshot: bool) -> tuple[str, bool]:
-    status = str(run_git(source_root, "status", "--porcelain", "--untracked-files=all"))
-    if not status:
-        return str(run_git(source_root, "rev-parse", "HEAD^{tree}")), False
+    clean_tree = clean_candidate_tree(source_root)
+    if clean_tree is not None:
+        return clean_tree, False
     if not allow_draft_snapshot or not is_isolated_candidate_snapshot(source_root):
         raise ReleaseBuildError("source Candidate working tree must be clean")
     return projected_tracked_candidate_tree(source_root), True
@@ -222,7 +267,10 @@ def is_reparse_point(path: Path) -> bool:
 
 def source_entries(source_root: Path, *, allow_draft_snapshot: bool = False) -> list[SourceEntry]:
     source_root = ensure_git_root(source_root)
-    candidate_tree_identity(source_root, allow_draft_snapshot=allow_draft_snapshot)
+    _candidate_tree, is_draft = candidate_tree_identity(
+        source_root,
+        allow_draft_snapshot=allow_draft_snapshot,
+    )
     raw = bytes(
         run_git(
             source_root,
@@ -253,13 +301,18 @@ def source_entries(source_root: Path, *, allow_draft_snapshot: bool = False) -> 
             raise ReleaseBuildError(f"links and reparse points are forbidden: {relative}")
         if not stat.S_ISREG(path.lstat().st_mode):
             raise ReleaseBuildError(f"release entry must be a regular file: {relative}")
-        data = path.read_bytes()
+        data = (
+            path.read_bytes()
+            if is_draft
+            else bytes(run_git(source_root, "cat-file", "blob", f"HEAD:{relative}", text=False))
+        )
         entries.append(
             SourceEntry(
                 path=relative,
                 mode=modes.get(relative, "100644"),
                 size=len(data),
                 sha256=sha256_bytes(data),
+                data=data,
             )
         )
     return entries
@@ -281,10 +334,9 @@ def canonical_tree_sha256(entries: Sequence[SourceEntry]) -> str:
 
 def copy_entries(source_root: Path, destination: Path, entries: Sequence[SourceEntry]) -> None:
     for entry in entries:
-        source = source_root / Path(*PurePosixPath(entry.path).parts)
         target = destination / Path(*PurePosixPath(entry.path).parts)
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source, target)
+        target.write_bytes(entry.data)
         if sha256_file(target) != entry.sha256:
             raise ReleaseBuildError(f"copy digest mismatch: {entry.path}")
 
@@ -389,12 +441,11 @@ def write_release_assets(
     zip_path = artifacts_root / f"{prefix}.zip"
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for entry in entries:
-            data = (source_root / Path(*PurePosixPath(entry.path).parts)).read_bytes()
             info = zipfile.ZipInfo(f"{prefix}/{entry.path}", ZIP_TIMESTAMP)
             info.compress_type = zipfile.ZIP_DEFLATED
             info.create_system = 3
             info.external_attr = (0o100755 if entry.mode == "100755" else 0o100644) << 16
-            archive.writestr(info, data, compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
+            archive.writestr(info, entry.data, compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
 
     checksums_path = artifacts_root / f"{prefix}-SHA256SUMS.txt"
     checksum_text = "".join(f"{entry.sha256}  {entry.path}\n" for entry in entries)
@@ -436,8 +487,7 @@ def verify_release_assets(
         for info, entry in zip(infos, entries, strict=True):
             if info.date_time != ZIP_TIMESTAMP:
                 raise ReleaseBuildError(f"release ZIP timestamp is not deterministic: {entry.path}")
-            source_bytes = (source_root / Path(*PurePosixPath(entry.path).parts)).read_bytes()
-            if archive.read(info) != source_bytes:
+            if archive.read(info) != entry.data:
                 raise ReleaseBuildError(f"release ZIP byte mismatch: {entry.path}")
 
     expected_checksums = "".join(f"{entry.sha256}  {entry.path}\n" for entry in entries)

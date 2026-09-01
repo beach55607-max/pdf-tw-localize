@@ -13,6 +13,8 @@ Create a monolingual zh-TW candidate through `source PDF -> semantic segment man
 - Preserve the source byte-for-byte. Write only to a new candidate path and refuse overwrite.
 - Replace required live English directly. Preserve approved names, identifiers, values, units, symbols, links, and regulatory tokens exactly.
 - Preserve undeclared images, UI pixels, and line art. Route each visual deliberately: preserve it with adjacent localized guidance when clear and non-safety-critical; redraw only when the user requests it or when safety or core operation cannot be explained outside it.
+- Do not confuse immutable visual content with fixed object placement. Unless the user explicitly locks placement or the visual is registered to a protected frame, a complete icon or image may move as one object when zh-TW grammar requires it. Its source clip, width, height, pixels or vector content, semantic label, and copy method remain source-bound; cropping, scaling, redrawing, or editing internal marks is blocking.
+- For a two-choice instruction, do not reserve English-order whitespace around detached icons. Declare `pdf-tw-localize/inline-visual-relocation/v1` and render one natural sequence: prefix + complete visual A + `或` + complete visual B + suffix. Declare the maximum gap, allow horizontal or vertical whole-object relocation, and run a selected-scope homologous-instance sweep. Fixing only the user-reported occurrence while the same source pattern remains elsewhere is blocking.
 - Split compound components before replacement. Canonical roles are `translatable_live_text`, `translatable_vector_outlined_text`, `icon`, `frame`, `vector_rule`, `background`, and `neighbor_container`.
 - Live text uses exact source spans, `remove_text_only`, and zero mask padding. Inspected outlined text uses exact source-bound path replacement. Never cover a compound component with a rectangular patch.
 - A vector signature preserves operator type, order, repetition, stream identity, graphics state, and every coordinate. Cubic paths include start, both control points, and endpoint. Missing, duplicate, malformed, clipped, interwoven, transformed, or unknown paths are `BLOCKED`.
@@ -35,9 +37,13 @@ Run `scripts/inspect_pdf.py`, then read [page-routing.md](references/page-routin
 
 Every extractable source span maps exactly once or has a concrete ignored-span reason. Record stable IDs, semantic spans, source bboxes, reading order, protected tokens, relationships, component members, complete path dispositions, and page context. Duplicate or unmapped source references are blocking.
 
+When a user reports unnatural spacing or word order around an inline icon, inspect every selected source page for the homologous visual pattern before rebuild. Record the exact expected segment IDs in `inline_visual_sweeps`; full-document work requires `DOCUMENT_WIDE_COMPLETE`, while an explicitly narrower proof records only that declared scope. Do not infer that a preserved icon's original coordinates are immutable.
+
 ### 3. Translate with explicit terminology layers
 
 Read [translation-policy.md](references/translation-policy.md) and [translation-backends.md](references/translation-backends.md). Translate coherent semantic blocks with their complete page context and return the same stable IDs. Local scripts export and import manifests; they do not pretend to call a language model.
+
+For a full-document translation, also read [full-mode-acceleration.md](references/full-mode-acceleration.md). First finish the extraction-stage validation with `PASS` and zero unresolved issues, then complete one document-wide terminology and dependency prepass. Use `scripts/full_run_pipeline.py` to create hash-bound semantic batches, validate exact resumable request/result pairs, and merge an exact translation import. Never split a cross-page dependency merely to meet a batch-size target. When authorized parallel workers are available, process only batches in the same declared wave concurrently; otherwise process them serially and retain exact completed checkpoints.
 
 Terminology precedence is fixed:
 
@@ -50,9 +56,13 @@ Read [domain-pack-contract.md](references/domain-pack-contract.md) before using 
 
 Use source-bound semantic bindings for paired values, conditions, thresholds, modes, comparisons, and consequences. Missing verified source context is `NEEDS_REVIEW` and blocks rebuild.
 
+Acceleration never carries forward QA or acceptance. After merging, import into the original source-bound manifest, rebuild once from the English source, and run the complete current machine, semantic, and individual visual QA gates.
+
 ### 4. Rebuild from the source
 
 Run `scripts/rebuild_pdf.py` only from the English source plus the validated translation manifest. It copies the selected source pages, removes mapped live text only, performs manifest-bound exact vector changes, preserves undeclared visuals, embeds the declared zh-TW font, and records fitted text and stream evidence.
+
+For `inline-visual-relocation/v1`, keep stage-1 text removal (`remove_text_only`) separate from the later inspected opaque cover. `rebuild_pdf.py` copies each declared source clip with `show_pdf_page`, forbids scaling, records both horizontal and vertical shifts, and inserts the `或` connector as live zh-TW text. A legacy two-stage overlay may pass only when its external evidence is hash-bound to the exact source, manifest, candidate, and segment and proves zero residual prior text plus complete source-drawing preservation; do not rewrite the report to disguise the two stages.
 
 Discover or supply fonts through `scripts/font_discovery.py`; no platform-specific absolute font path is a default. Test-font origin and redistribution evidence are in [font-fixture-provenance.md](references/font-fixture-provenance.md).
 
@@ -65,6 +75,7 @@ Read [qa-contract.md](references/qa-contract.md). Use:
 - `scripts/qa_rebuilt_pdf.py` for source/manifest/output binding, coverage, protected tokens, residue, geometry, fonts, alignment, color, tables, images, and line art;
 - `scripts/qa_preserved_visuals.py` for page-aware preserved visuals, rendered-region identity, OutputIntent/ICC identity, and component preservation;
 - `scripts/qa_compound_components.py` for outlined paths, preserved members, rule/background adjustments, relations, repeated layout, dependent geometry, and composited-visible contracts;
+- `scripts/qa_inline_visual_sequences.py` for homologous-sweep coverage, natural prefix/visual/`或`/visual/suffix order, complete-object source-clip copy, no scaling or internal editing, and report/hash binding;
 - `scripts/render_review.py` to create hash-bound comparisons with all review fields initially `NOT_CHECKED`;
 - `scripts/validate_visual_review.py` after opening every comparison image individually at readable zoom;
 - `scripts/qa_pdf.py` to report the independent QA axes.
@@ -82,8 +93,10 @@ Runtime, optional backend, tooling, and license boundaries are recorded in [depe
 - `secure_preflight.py`: conservative input and runtime checks.
 - `inspect_pdf.py`: page evidence and route suggestions.
 - `extract_segments.py`, `import_translations.py`, `validate_segments.py`: stable-ID semantic pipeline.
-- `rebuild_pdf.py`: source-coordinate rebuild and exact component edits.
+- `full_run_pipeline.py`: dependency-safe batch planning, exact checkpoint validation, resumable merge, and stage timing.
+- `rebuild_pdf.py`: source-coordinate rebuild, grammar-aware complete inline visual relocation, and exact component edits.
 - `qa_rebuilt_pdf.py`, `qa_preserved_visuals.py`, `qa_compound_components.py`, `qa_pdf.py`: independent automated evidence.
+- `qa_inline_visual_sequences.py`: inline visual sweep, source-clip, spacing, order, and two-stage overlay evidence.
 - `render_review.py`, `validate_visual_review.py`: hash-bound render and review records.
 - `domain_pack.py`: explicit, digest-bound, fail-closed data-only pack loading and glossary precedence.
 - `font_discovery.py`: portable explicit/bundled/system font discovery.

@@ -31,6 +31,7 @@ from _compound_components import (
     signature_sha256,
 )
 from _pdf_catalog import catalog_color_evidence, clone_output_intents
+from _inline_visual_sequences import COPY_METHOD, inline_contract
 from _segment_common import (
     PRESERVE_ACTIONS,
     bbox_inside,
@@ -51,6 +52,102 @@ def color(value: Any, default: tuple[float, float, float]) -> tuple[float, float
     if any(channel < 0 or channel > 1 for channel in parsed):
         raise ValueError(f"Color channels must be between 0 and 1: {value}")
     return parsed  # type: ignore[return-value]
+
+
+def inline_cover_bboxes(segment: dict[str, Any]) -> list[list[float]]:
+    contract = inline_contract(segment)
+    if contract is None:
+        return []
+    return [normalize_bbox(values) for values in contract.get("cover_bboxes") or []]
+
+
+def union_rects(boxes: list[list[float]]) -> list[float]:
+    if not boxes:
+        raise ValueError("Cannot union an empty bbox list")
+    return [
+        min(box[0] for box in boxes),
+        min(box[1] for box in boxes),
+        max(box[2] for box in boxes),
+        max(box[3] for box in boxes),
+    ]
+
+
+def apply_inline_visual_relocations(
+    page: fitz.Page,
+    source_doc: fitz.Document,
+    source_page_number: int,
+    page_segments: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    """Apply opaque source cleanup, then copy complete source visual clips.
+
+    Text removal is performed earlier with transparent redaction. This function
+    records the later opaque cover separately so `mask_mode=remove_text_only`
+    remains a truthful stage-1 statement.
+    """
+
+    inline_segments = [segment for segment in page_segments if inline_contract(segment)]
+    if not inline_segments:
+        return {}
+    results: dict[str, dict[str, Any]] = {}
+    for segment in inline_segments:
+        contract = inline_contract(segment) or {}
+        fill = color(contract.get("cover_fill"), (1.0, 1.0, 1.0))
+        covers = inline_cover_bboxes(segment)
+        for values in covers:
+            page.draw_rect(
+                fitz.Rect(values),
+                color=None,
+                fill=fill,
+                width=0.0,
+                overlay=True,
+            )
+        results[str(segment["segment_id"])] = {
+            "schema": contract.get("schema"),
+            "policy": contract.get("policy"),
+            "homologous_set_id": contract.get("homologous_set_id"),
+            "connector": contract.get("connector"),
+            "object_position_policy": contract.get("object_position_policy"),
+            "internal_content_policy": contract.get("internal_content_policy"),
+            "opaque_cover": {
+                "bboxes": covers,
+                "fill": list(fill),
+                "basis": contract.get("cover_fill_basis"),
+                "applied_after_text_only_redaction": True,
+            },
+            "copied_visuals": [],
+            "prior_live_text_removed_before_final_overlay": True,
+            "status": "PENDING_VISUAL_COPY",
+        }
+    for segment in inline_segments:
+        contract = inline_contract(segment) or {}
+        result = results[str(segment["segment_id"])]
+        for index, visual in enumerate(contract.get("relocations") or [], start=1):
+            source_clip = fitz.Rect(visual["source_clip_bbox"])
+            target_clip = fitz.Rect(visual["target_clip_bbox"])
+            xref = page.show_pdf_page(
+                target_clip,
+                source_doc,
+                source_page_number - 1,
+                keep_proportion=False,
+                overlay=True,
+                clip=source_clip,
+            )
+            result["copied_visuals"].append(
+                {
+                    "index": index,
+                    "semantic_label": visual["semantic_label"],
+                    "source_clip_bbox": normalize_bbox(source_clip),
+                    "target_clip_bbox": normalize_bbox(target_clip),
+                    "horizontal_shift_pt": float(visual["horizontal_shift_pt"]),
+                    "vertical_shift_pt": float(visual["vertical_shift_pt"]),
+                    "object_policy": visual["object_policy"],
+                    "copy_method": COPY_METHOD,
+                    "internal_content_edited": False,
+                    "form_xref": int(xref),
+                }
+            )
+        result["status"] = "APPLIED_SOURCE_CLIP_COPY"
+    return results
 
 
 def color_to_srgb_int(value: tuple[float, float, float]) -> int:
@@ -1147,6 +1244,13 @@ def main() -> int:
     background_adjustment_evidence: list[dict[str, Any]] = []
     vector_rule_adjustment_evidence: list[dict[str, Any]] = []
     vector_path_replacement_evidence: list[dict[str, Any]] = []
+    inline_relocation_evidence: list[dict[str, Any]] = []
+    superseded_by = {
+        str(segment_id): str(owner_id)
+        for segment_id, owner_id in (
+            manifest.get("post_rebuild_superseded_segments") or {}
+        ).items()
+    }
     page_map = {source_page: index for index, source_page in enumerate(selected_pages)}
     for source_page_number, output_index in page_map.items():
         page = output_doc[output_index]
@@ -1190,6 +1294,9 @@ def main() -> int:
         for segment in page_segments:
             render = segment["render"]
             action = render.get("action", "replace")
+            segment_id = str(segment["segment_id"])
+            if segment_id in superseded_by:
+                continue
             if action in PRESERVE_ACTIONS:
                 render_results.append(
                     {
@@ -1212,6 +1319,21 @@ def main() -> int:
                 )
                 continue
             if action == "replace_vector_outlined_text":
+                continue
+            inline_covers = inline_cover_bboxes(segment)
+            if inline_covers:
+                for cover in inline_covers:
+                    page.add_redact_annot(
+                        fitz.Rect(cover),
+                        fill=None,
+                        cross_out=False,
+                    )
+                mask_evidence[segment_id] = {
+                    "mask_bbox": normalize_bbox(union_rects(inline_covers)),
+                    "mask_bboxes": inline_covers,
+                    "mask_mode": "remove_text_only",
+                    "mask_fill": None,
+                }
                 continue
             mask = expand_bbox(
                 render.get("mask_bbox", segment["bbox"]),
@@ -1245,8 +1367,48 @@ def main() -> int:
         if bold_font_path != font_path:
             page.insert_font(fontname=bold_font_name, fontfile=str(bold_font_path))
 
+        page_inline_results = apply_inline_visual_relocations(
+            page, source_doc, source_page_number, page_segments
+        )
+        inline_relocation_evidence.extend(
+            {
+                "segment_id": segment_id,
+                "page": source_page_number,
+                **copy.deepcopy(evidence),
+            }
+            for segment_id, evidence in page_inline_results.items()
+        )
+
         for segment in page_segments:
             render = segment["render"]
+            segment_id = str(segment["segment_id"])
+            if segment_id in superseded_by:
+                render_results.append(
+                    {
+                        "segment_id": segment_id,
+                        "page": source_page_number,
+                        "semantic_type": segment["semantic_type"],
+                        "action": render.get("action", "replace"),
+                        "source_bbox": segment["bbox"],
+                        "target_bbox": render["target_bbox"],
+                        "container_bbox": render.get("container_bbox"),
+                        "requested_font_size_pt": float(render.get("font_size_pt", 0.0)),
+                        "used_font_size_pt": None,
+                        "source_font_size_pt": float(
+                            (segment.get("font_style") or {}).get(
+                                "source_font_size_pt", 0.0
+                            )
+                        ),
+                        "font_ratio": None,
+                        "line_count": 0,
+                        "rendered_lines": [],
+                        "fit_status": "SUPERSEDED_BY_FINAL_INLINE_VISUAL_SEQUENCE",
+                        "superseded_by_segment_id": superseded_by[segment_id],
+                        "prior_live_text_removed_before_final_overlay": True,
+                        "component_contract": segment.get("component_contract"),
+                    }
+                )
+                continue
             if render.get("action", "replace") in PRESERVE_ACTIONS:
                 continue
             if render.get("draw_box"):
@@ -1293,6 +1455,14 @@ def main() -> int:
                 result["mask_fill"] = None
             else:
                 result.update(mask_evidence[segment["segment_id"]])
+            if segment_id in page_inline_results:
+                result["post_rebuild_inline_visual_relocation"] = copy.deepcopy(
+                    page_inline_results[segment_id]
+                )
+                if render.get("display_text_with_visual_semantics"):
+                    result["post_rebuild_inline_visual_relocation"][
+                        "display_text_with_visual_semantics"
+                    ] = render["display_text_with_visual_semantics"]
             render_results.append(result)
 
         resolved_rule_members: list[dict[str, Any]] = []
@@ -1413,6 +1583,7 @@ def main() -> int:
         "background_adjustments": background_adjustment_evidence,
         "vector_rule_adjustments": vector_rule_adjustment_evidence,
         "vector_path_replacements": vector_path_replacement_evidence,
+        "inline_visual_relocations": inline_relocation_evidence,
         "source_path_operator_restoration": source_path_operator_restoration,
         "source_image_restoration": source_image_restoration,
         "output": {

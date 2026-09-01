@@ -46,6 +46,8 @@ If a single table-cell phrase is split across segments, every member declares an
 
 `extract_segments.py --layout-spec` accepts `pdf-tw-localize/layout-spec/v1` JSON. Each selected page contains `context`, `segments`, and optional `ignored_source_refs`.
 
+The layout spec may also contain top-level `inline_visual_sweeps[]` and `post_rebuild_superseded_segments`; extraction copies those declarations into the source-bound manifest for validation and rebuild.
+
 Each segment spec uses:
 
 - `key`: durable semantic key used in the stable ID;
@@ -80,6 +82,24 @@ Each edge binding names `basis`, `edge`, and finite `offset_pt`. `basis: source_
 
 Currently safe executable dependency routes are an exact untransformed rectangle rewrite through `adjust_background`, or an exact non-resizing path translation through `adjust_vector_rule`. Other roles remain in the member inventory, but a declared dependency on an unsupported policy is blocking rather than silently preserved. A manifest may not provide an arbitrary static `target_bbox` as a substitute for the actual candidate driver when `dependent_geometry` is present; the rebuild report records the resolved target and driver bboxes.
 
+### Grammar-aware inline visual relocation
+
+Use `render.inline_visual_relocation.schema: pdf-tw-localize/inline-visual-relocation/v1` only when a complete standalone source visual must move to form a natural zh-TW inline sentence. This contract separates immutable internal content from movable placement. It requires:
+
+- `policy: natural_inline_choice_sequence`, a stable `homologous_set_id`, `connector: 或`, and finite `maximum_gap_pt` between 0 and 6;
+- `object_position_policy: relocation_allowed_for_target_grammar` and `internal_content_policy: preserve_source_visual_content_exact`;
+- nonempty `cover_bboxes[]`, exact three-channel `cover_fill`, and `cover_fill_basis: explicit_inspected_source_background`;
+- exactly two `relocations[]`. Each has complete `source_clip_bbox` and equal-size `target_clip_bbox`, finite `horizontal_shift_pt` and `vertical_shift_pt` equal to that translation, distinct `semantic_label`, `object_policy: relocate_complete_visual_object_without_internal_edit`, and `copy_method: show_pdf_page_source_clip`;
+- one render fragment with each layout role `left_of_first_choice_visual`, `between_choice_visuals`, and `right_of_second_choice_visual_first_line`. The middle fragment renders the declared `或`; optional continuation fragments may follow below;
+- `display_text_with_visual_semantics` containing the exact semantic substring `〔<label A>圖示〕或〔<label B>圖示〕`;
+- `render.mask_mode: remove_text_only` and `mask_padding_pt: 0`. The later opaque cover is reported separately and must not be mislabeled as the text-removal mask.
+
+The horizontal order is prefix, first target clip, connector, second target clip, suffix. Every adjacent gap must be nonnegative within the declared tolerance and no larger than `maximum_gap_pt`; the text fragments must share the visual inline band. Equal source and target dimensions prohibit scaling but do not prohibit a nonzero vertical shift.
+
+Every manifest containing this contract also declares `inline_visual_sweeps[]`. Each uses `pdf-tw-localize/inline-visual-sweep/v1`, unique `sweep_id`, `pattern: choice_between_two_complete_visuals`, `connector: 或`, `scope_pages` exactly equal to `selected_pages`, exact `expected_segment_ids`, matching `expected_instance_count`, a scope-appropriate detection basis, and a completed discovery state. Full-document manifests require `document_wide_source_visual_scan` plus `DOCUMENT_WIDE_COMPLETE`; narrower authorized proofs use `declared_scope_source_visual_scan` plus `DECLARED_SCOPE_COMPLETE`. Every inline sequence must occur in exactly one sweep.
+
+If a prior fragment would otherwise be rendered again inside the owner's final sequence, add it to top-level `post_rebuild_superseded_segments` as `old_segment_id: owner_segment_id`. Both must share a page, the owner must have an inline relocation contract, and one owner cover must fully contain the old fragment bbox. The rebuild report records zero rendered lines and `SUPERSEDED_BY_FINAL_INLINE_VISUAL_SEQUENCE`; QA verifies the exact mapping rather than treating a missing line as success.
+
 ### Composited-visible layout
 
 A page context uses `composited_visible_layouts[]` when opaque related members can cover a horizontal rule. Each entry has `schema: pdf-tw-localize/composited-visible-layout/v1`, unique `contract_id`, `normalization: anchor_top_left`, `axis: horizontal`, non-negative `maximum_delta_pt`, a nonempty `compare` list, and at least two instances. Supported visible metrics are `start`, `end`, `length`, `thickness`, and `center_cross`.
@@ -97,6 +117,15 @@ A separately identified `vector_rule` may use `policy: adjust_vector_rule` only 
 The manifest binds vector members by stable component ID, role, policy, page, and bbox; bbox equality is not itself preservation evidence. Machine QA derives a complete ordered drawing signature from each bound source/candidate region. It retains every `l`, `re`, `qu`, and cubic `c` operator, all coordinates, operator order, and duplicate count. The signature parser fails closed when a PyMuPDF operator is unknown or structurally incomplete.
 
 ## Translation handoff
+
+For a large full-document run, `full_run_pipeline.py` creates separate internal artifacts rather than changing this manifest schema:
+
+- `pdf-tw-localize/full-run-plan/v1` binds the validated manifest, glossary set, dependency groups, stable-ID ownership, parallel waves, and final QA requirements;
+- `pdf-tw-localize/full-run-batch-request/v1` carries owned segments plus context-only neighbors;
+- `pdf-tw-localize/full-run-batch-result/v1` returns translations only for the owned stable IDs and binds the exact request file;
+- `pdf-tw-localize/full-run-timing/v1` records plan-bound operational time without granting acceptance.
+
+Batch size limits are soft. Pages joined by document context, semantic bindings, shared relationship IDs, or an explicit dependency group remain in one batch. A merged result returns to the normal `pdf-tw-localize/translation-import/v1` contract and must pass the same import, rebuild, and final QA path as a serial translation.
 
 Scripts export untranslated manifests; they do not call or impersonate a language model. The translating model receives the complete page context and all related segments, fills `zh_TW` by exact `segment_id`, and changes only the segment status to `TRANSLATED`. Preserve the mapping list.
 
@@ -118,6 +147,8 @@ Validation requires unique IDs and reading order, full source-ref coverage, expl
 ## Render boundary
 
 `render.action` is normally `replace`; use `replace_vector_outlined_text` only with a v2 source-bound outlined member. Use `preserve` only for an exact protected token or separately mapped preserved component. Use `preserve_source_visual_with_textual_guidance` for a user-permitted `image-text`, UI, or protected visual annotation bound to a declared `relationships.visual_id`; it is not a tool-difficulty fallback for required headings or warnings. `mask_bbox` covers only source live-text spans. `mask_mode: remove_text_only` removes live text without painting a replacement rectangle and is required when a separate marker, background, frame, or line-art object must remain. `target_bbox` may reasonably expand within the same semantic area. `container_bbox` is mandatory for `table-cell` segments.
+
+`preserve_source_visual_content_exact` does not mean `object_position_fixed`. A complete inline icon may use the versioned relocation contract above unless its screenshot, frame, table cell, diagram registration, or explicit user instruction fixes placement. Cropping, scaling, redrawing, or editing its internal pixels/vectors remains forbidden.
 
 `render.text_color_policy` is `preserve_source_exact`, `fragment_source_exact`, or `explicit_inspected`. `preserve_source_exact` requires exactly one 24-bit sRGB value in `font_style.source_colors`; the renderer uses it and candidate QA reads back the actual span color. More than one source color is ambiguous unless every render fragment declares `text_color` plus `text_color_basis`, or an inspected effective `render.text_color` plus `text_color_basis` is declared. Missing or inconsistent evidence is blocking.
 
